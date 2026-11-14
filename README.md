@@ -16,6 +16,11 @@ ways of asking the same question disagree. Examples:
 Each check here tests one of those invariants, so a failure points to a
 specific code path rather than just saying "spoofed".
 
+**Worked example:** [Brave root-cause report](docs/brave-farbling-report.md).
+The kit traces Brave's Canvas and Web Audio farbling to the exact brave-core
+source lines. That includes an `AudioBuffer.getChannelData()` defect: the
+read scales the stored samples in place, so every call compounds the change.
+
 ## Running it
 
 The page needs a secure context (it uses `crypto.subtle`), so serve it over

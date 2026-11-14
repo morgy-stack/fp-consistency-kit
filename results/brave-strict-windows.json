@@ -1,7 +1,7 @@
 {
   "kit": "fp-consistency-kit/1",
   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
-  "time": "2026-11-14T15:15:35.679Z",
+  "time": "2026-11-14T15:21:15.015Z",
   "environment": {
     "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
     "brave": true,
@@ -24,7 +24,8 @@
         "uniqueHashes": [
           "a601c70787e37858",
           "d615ac07ff1bab91"
-        ]
+        ],
+        "sequence": "AABBB"
       }
     },
     {
@@ -36,7 +37,8 @@
         "runs": 5,
         "uniqueHashes": [
           "8ffac021e2c9dea2"
-        ]
+        ],
+        "sequence": "AAAAA"
       }
     },
     {
@@ -142,7 +144,10 @@
       "status": "fail",
       "details": {
         "getChannelData": "f21bd1d975403d33",
-        "copyFromChannel": "df046a34d0701f15"
+        "copyFromChannel": "df046a34d0701f15",
+        "sample4600": 0.3862457871437073,
+        "copySample4600": 0.3859151303768158,
+        "ratio": 0.9991439213632939
       }
     },
     {
@@ -172,6 +177,22 @@
       }
     },
     {
+      "id": "A7",
+      "group": "audio",
+      "name": "getChannelData returns the same values on repeated calls",
+      "status": "fail",
+      "details": {
+        "written": 0.5,
+        "reads": [
+          0.49957194924354553,
+          0.4991442561149597,
+          0.49871695041656494
+        ],
+        "ratio2to1": 0.9991438808179014,
+        "ratio3to2": 0.9991439234386454
+      }
+    },
+    {
       "id": "A5",
       "group": "audio",
       "name": "AnalyserNode frequency data identical across 2 reads",
@@ -191,7 +212,7 @@
         "baseLatency": 0.01,
         "outputLatency": 0,
         "maxChannelCount": 2,
-        "state": "running"
+        "state": "suspended"
       }
     },
     {
