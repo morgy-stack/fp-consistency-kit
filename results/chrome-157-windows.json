@@ -1,0 +1,32 @@
+{
+  "kit": "fp-consistency-kit/1",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+  "time": "2026-11-14T12:24:14.104Z",
+  "results": [
+    {"id": "C1", "group": "canvas", "name": "toDataURL identical across 5 reads of one canvas", "status": "pass", "details": {"hashes": ["3e81ebcf7a0adada"]}},
+    {"id": "C2", "group": "canvas", "name": "getImageData identical across 5 reads of one canvas", "status": "pass", "details": {"hashes": ["ed86d3ebb1fbc75e"]}},
+    {"id": "C3", "group": "canvas", "name": "Same drawing on two fresh canvases gives same pixels", "status": "pass", "details": {"first": "ed86d3ebb1fbc75e", "second": "ed86d3ebb1fbc75e"}},
+    {"id": "C4", "group": "canvas", "name": "Solid rgb(10,20,30) fill reads back exactly", "status": "pass", "details": {"wrongPixels": 0, "of": 256, "sample": [10, 20, 30, 255, 10, 20, 30, 255]}},
+    {"id": "C5", "group": "canvas", "name": "putImageData -> getImageData round-trips exactly", "status": "pass", "details": {"differingBytes": 0, "of": 115200}},
+    {"id": "C6", "group": "canvas", "name": "toDataURL (decoded) matches getImageData", "status": "pass", "details": {"getImageData": "dc6f80cebc8cd4cb", "decodedPng": "dc6f80cebc8cd4cb"}},
+    {"id": "C7", "group": "canvas", "name": "OffscreenCanvas (main thread) matches canvas", "status": "pass", "details": {"canvas": "dc6f80cebc8cd4cb", "offscreen": "dc6f80cebc8cd4cb"}},
+    {"id": "C8", "group": "canvas", "name": "Worker OffscreenCanvas matches canvas", "status": "pass", "details": {"canvas": "dc6f80cebc8cd4cb", "worker": "dc6f80cebc8cd4cb", "workerStable": true}},
+    {"id": "C9", "group": "canvas", "name": "Fresh iframe canvas matches top-level canvas", "status": "pass", "details": {"top": "dc6f80cebc8cd4cb", "iframe": "dc6f80cebc8cd4cb"}},
+    {"id": "A1", "group": "audio", "name": "Oscillator+compressor render identical across 2 runs", "status": "pass", "details": {"sum1": 124.04347776696522, "sum2": 124.04347776696522, "hash1": "d37e25867e9d29fd", "hash2": "d37e25867e9d29fd"}},
+    {"id": "A2", "group": "audio", "name": "getChannelData matches copyFromChannel on rendered buffer", "status": "pass", "details": {"getChannelData": "d37e25867e9d29fd", "copyFromChannel": "d37e25867e9d29fd"}},
+    {"id": "A3", "group": "audio", "name": "ConstantSource 0.5 renders as exactly 0.5", "status": "pass", "details": {"wrongSamples": 0, "of": 1024, "first": [0.5, 0.5, 0.5, 0.5]}},
+    {"id": "A4", "group": "audio", "name": "copyToChannel -> getChannelData round-trips exactly", "status": "pass", "details": {"wrongSamples": 0, "of": 2048}},
+    {"id": "A5", "group": "audio", "name": "AnalyserNode frequency data identical across 2 reads", "status": "pass", "details": {"read1": "9d8d7456837d46cb", "read2": "9d8d7456837d46cb"}},
+    {"id": "A6", "group": "audio", "name": "AudioContext properties", "status": "info", "details": {"sampleRate": 48000, "baseLatency": 0.01, "outputLatency": 0, "maxChannelCount": 2, "state": "suspended"}},
+    {"id": "N0", "group": "natives", "name": "Function.prototype.toString is native", "status": "pass", "details": {"toString": "function toString() { [native code] }"}},
+    {"id": "N1", "group": "natives", "name": "HTMLCanvasElement.prototype.toDataURL", "status": "pass", "details": {}},
+    {"id": "N2", "group": "natives", "name": "HTMLCanvasElement.prototype.toBlob", "status": "pass", "details": {}},
+    {"id": "N3", "group": "natives", "name": "CanvasRenderingContext2D.prototype.getImageData", "status": "pass", "details": {}},
+    {"id": "N4", "group": "natives", "name": "CanvasRenderingContext2D.prototype.measureText", "status": "pass", "details": {}},
+    {"id": "N5", "group": "natives", "name": "OffscreenCanvasRenderingContext2D.prototype.getImageData", "status": "pass", "details": {}},
+    {"id": "N6", "group": "natives", "name": "AudioBuffer.prototype.getChannelData", "status": "pass", "details": {}},
+    {"id": "N7", "group": "natives", "name": "AudioBuffer.prototype.copyFromChannel", "status": "pass", "details": {}},
+    {"id": "N8", "group": "natives", "name": "AnalyserNode.prototype.getFloatFrequencyData", "status": "pass", "details": {}},
+    {"id": "N9", "group": "natives", "name": "OfflineAudioContext.prototype.startRendering", "status": "pass", "details": {}}
+  ]
+}
