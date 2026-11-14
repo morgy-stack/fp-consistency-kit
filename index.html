@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fingerprint Consistency Kit</title>
+<style>
+  :root { --bg:#fafaf7; --fg:#1d1d1b; --muted:#6b6b66; --line:#e2e0d8;
+          --pass:#1f7a3a; --fail:#b3261e; --warn:#9a6700; --info:#3b5b8c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#151514; --fg:#ecebe6; --muted:#9a9a93; --line:#2e2d2a;
+            --pass:#5cc47a; --fail:#ff7a6e; --warn:#e0b04a; --info:#8fb0e6; }
+  }
+  body { background:var(--bg); color:var(--fg); margin:0; padding:16px;
+         font:14px/1.45 system-ui, sans-serif; }
+  main { max-width:960px; margin:0 auto; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  p.lead { color:var(--muted); margin:0 0 16px; }
+  .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  button { font:inherit; padding:6px 12px; border:1px solid var(--line); border-radius:6px;
+           background:transparent; color:var(--fg); cursor:pointer; }
+  #summary { color:var(--muted); }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-weight:600; color:var(--muted); }
+  td.id { font-family:ui-monospace, monospace; white-space:nowrap; }
+  td.st { font-weight:600; text-transform:uppercase; font-size:12px; }
+  .pass { color:var(--pass); } .fail { color:var(--fail); } .warn { color:var(--warn); } .info { color:var(--info); }
+  pre { margin:0; font:12px/1.35 ui-monospace, monospace; white-space:pre-wrap; word-break:break-all; color:var(--muted); }
+  .wrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fingerprint Consistency Kit</h1>
+  <p class="lead">Checks whether Canvas 2D, Web Audio and native functions give consistent answers across code paths.
+    Run it in a stock Chromium build and in the build under test, then diff the two exports with <code>compare.py</code>.</p>
+  <div class="bar">
+    <button id="run">Run again</button>
+    <button id="save" disabled>Download JSON</button>
+    <span id="summary">Running…</span>
+  </div>
+  <div class="wrap">
+    <table>
+      <thead><tr><th>ID</th><th>Check</th><th>Status</th><th>Details</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</main>
+<script src="scene.js"></script>
+<script src="tests.js"></script>
+<script>
+  var results = [];
+
+  function add(id, group, name, status, details) {
+    results.push({ id: id, group: group, name: name, status: status, details: details });
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td class="id"></td><td></td><td class="st"></td><td><pre></pre></td>';
+    tr.children[0].textContent = id;
+    tr.children[1].textContent = name;
+    tr.children[2].textContent = status;
+    tr.children[2].className = 'st ' + status;
+    tr.querySelector('pre').textContent = Object.keys(details).length ? JSON.stringify(details, null, 1) : '';
+    document.getElementById('rows').appendChild(tr);
+  }
+
+  async function guarded(group, fn) {
+    try { await fn(add); } catch (e) { add(group.toUpperCase() + '!', group, group + ' suite crashed', 'fail', { error: String(e) }); }
+  }
+
+  async function run() {
+    results = [];
+    document.getElementById('rows').textContent = '';
+    document.getElementById('save').disabled = true;
+    document.getElementById('summary').textContent = 'Running…';
+    await guarded('canvas', canvasTests);
+    await guarded('audio', audioTests);
+    await guarded('natives', nativeTests);
+    var count = {};
+    results.forEach(function (r) { count[r.status] = (count[r.status] || 0) + 1; });
+    document.getElementById('summary').textContent =
+      ['pass', 'fail', 'warn', 'info'].filter(function (s) { return count[s]; })
+        .map(function (s) { return count[s] + ' ' + s; }).join(' · ');
+    document.getElementById('save').disabled = false;
+  }
+
+  document.getElementById('run').onclick = run;
+  document.getElementById('save').onclick = function () {
+    var out = { kit: 'fp-consistency-kit/1', userAgent: navigator.userAgent,
+                time: new Date().toISOString(), results: results };
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' }));
+    a.download = 'fp-results-' + Date.now() + '.json';
+    a.click();
+  };
+
+  if (!window.isSecureContext) {
+    document.getElementById('summary').textContent =
+      'Needs a secure context (crypto.subtle). Serve over http://localhost or https.';
+  } else {
+    run();
+  }
+</script>
+</body>
+</html>
