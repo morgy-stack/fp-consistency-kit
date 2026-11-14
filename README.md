@@ -38,12 +38,36 @@ python3 compare.py baseline.json candidate.json
 `compare.py` prints a Markdown table of every check and flags status changes,
 so it can go straight into a report.
 
+**Repetitions** (default 5, up to 50) sets how many times the stability
+checks (C1, C2, A1) repeat. Raise it when noise might change only
+occasionally. The export includes an environment snapshot (user agent, CPU
+count, screen, repetitions), so two runs are only compared when they were
+taken under the same conditions.
+
+### Suggested procedure
+
+1. Record the browser version, OS, device model, GPU and whether hardware
+   acceleration is on.
+2. Run the page 3 times in each browser without changing settings, then once
+   more after a browser restart.
+3. Change one variable at a time (profile, acceleration, device), and compare
+   each run against the baseline from the same device.
+
+### Unit tests
+
+```bash
+npm test    # Node 22+, no packages needed
+```
+
+These cover the hashing, the shared scene, the check definitions and
+`compare.py`. The browser checks themselves only run in a real browser.
+
 ## Checks
 
 | ID | Area | Invariant |
 |----|------|-----------|
-| C1 | Canvas | `toDataURL` is identical across 5 reads of one canvas |
-| C2 | Canvas | `getImageData` is identical across 5 reads of one canvas |
+| C1 | Canvas | `toDataURL` is identical across repeated reads of one canvas |
+| C2 | Canvas | `getImageData` is identical across repeated reads of one canvas |
 | C3 | Canvas | The same drawing on two fresh canvases gives the same pixels |
 | C4 | Canvas | A solid `rgb(10,20,30)` fill reads back exactly |
 | C5 | Canvas | `putImageData` → `getImageData` round-trips opaque pixels exactly |
@@ -51,7 +75,7 @@ so it can go straight into a report.
 | C7 | Canvas | Main-thread `OffscreenCanvas` matches a document canvas *(warn)* |
 | C8 | Canvas | Worker `OffscreenCanvas` matches a document canvas *(warn)* |
 | C9 | Canvas | A fresh iframe realm matches the top-level page |
-| A1 | Audio | Oscillator + compressor render is identical across 2 runs |
+| A1 | Audio | Oscillator + compressor render is identical across repeated runs |
 | A2 | Audio | `getChannelData` matches `copyFromChannel` |
 | A3 | Audio | `ConstantSourceNode` at 0.5 renders as exactly 0.5 |
 | A4 | Audio | `copyToChannel` → `getChannelData` round-trips exactly |
@@ -81,6 +105,23 @@ Whether a given result is a defect or intended privacy behaviour depends on
 the design goal. For example, Brave deliberately adds per-session noise
 ("farbling"). The kit only reports what is consistent and what is not.
 
+## Scope and limitations
+
+- This kit measures **web-exposed behaviour**. It does not modify or patch
+  Chromium. Finding the cause of a failure means reading the matching source
+  in a checked-out Chromium revision, for example
+  `third_party/blink/renderer/modules/canvas/`,
+  `third_party/blink/renderer/modules/webaudio/` and `third_party/skia/`.
+  Record the revision, build flags and platform with every source-level finding.
+- Canvas checks use the **default** 2D context on purpose.
+  `willReadFrequently: true` would force the CPU raster path and hide noise
+  that is only added on GPU readback.
+- WebGL, WebGPU, fonts and real audio output are not covered.
+- Hashes are summaries. For deeper debugging, keep the raw pixel or sample
+  buffers and diff them numerically.
+- All computation happens in the browser. Nothing is sent anywhere, no audio
+  is played and the microphone is never used.
+
 ## Files
 
 - `index.html`: runs the checks and exports JSON
@@ -88,6 +129,8 @@ the design goal. For example, Brave deliberately adds per-session noise
 - `scene.js`: the shared drawing and hashing used by every context
 - `worker.js`: `OffscreenCanvas` check inside a dedicated worker
 - `compare.py`: baseline vs candidate diff
+- `tests/kit.test.mjs`: unit tests (`npm test`)
+- `results/`: saved runs (`chrome-157-windows.json` is the stock Chrome baseline)
 - `docs/report-template.md`: structure for a root-cause write-up
 
 ## License

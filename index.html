@@ -26,6 +26,10 @@
   td.id { font-family:ui-monospace, monospace; white-space:nowrap; }
   td.st { font-weight:600; text-transform:uppercase; font-size:12px; }
   .pass { color:var(--pass); } .fail { color:var(--fail); } .warn { color:var(--warn); } .info { color:var(--info); }
+  input[type=number] { font:inherit; width:4em; padding:5px; border:1px solid var(--line); border-radius:6px;
+                       background:transparent; color:var(--fg); }
+  details { margin-top:16px; }
+  summary { cursor:pointer; color:var(--muted); }
   pre { margin:0; font:12px/1.35 ui-monospace, monospace; white-space:pre-wrap; word-break:break-all; color:var(--muted); }
   .wrap { overflow-x:auto; }
 </style>
@@ -36,6 +40,7 @@
   <p class="lead">Checks whether Canvas 2D, Web Audio and native functions give consistent answers across code paths.
     Run it in a stock Chromium build and in the build under test, then diff the two exports with <code>compare.py</code>.</p>
   <div class="bar">
+    <label>Repetitions <input id="reps" type="number" min="2" max="50" value="5"></label>
     <button id="run">Run again</button>
     <button id="save" disabled>Download JSON</button>
     <span id="summary">Running…</span>
@@ -46,6 +51,10 @@
       <tbody id="rows"></tbody>
     </table>
   </div>
+  <details>
+    <summary>Test environment (included in the JSON export)</summary>
+    <pre id="env"></pre>
+  </details>
 </main>
 <script src="scene.js"></script>
 <script src="tests.js"></script>
@@ -68,7 +77,26 @@
     try { await fn(add); } catch (e) { add(group.toUpperCase() + '!', group, group + ' suite crashed', 'fail', { error: String(e) }); }
   }
 
+  // Conditions that legitimately change output; record them so two runs
+  // are only compared when they were taken under the same conditions.
+  function environment() {
+    return {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform || null,
+      language: navigator.language,
+      hardwareConcurrency: navigator.hardwareConcurrency || null,
+      deviceMemoryGB: navigator.deviceMemory || null,
+      screen: screen.width + 'x' + screen.height + ' @' + (window.devicePixelRatio || 1) + 'x',
+      secureContext: window.isSecureContext,
+      repetitions: REPEAT
+    };
+  }
+
   async function run() {
+    var reps = Number(document.getElementById('reps').value);
+    REPEAT = Number.isInteger(reps) && reps >= 2 && reps <= 50 ? reps : 5;
+    document.getElementById('reps').value = REPEAT;
+    document.getElementById('env').textContent = JSON.stringify(environment(), null, 2);
     results = [];
     document.getElementById('rows').textContent = '';
     document.getElementById('save').disabled = true;
@@ -87,7 +115,7 @@
   document.getElementById('run').onclick = run;
   document.getElementById('save').onclick = function () {
     var out = { kit: 'fp-consistency-kit/1', userAgent: navigator.userAgent,
-                time: new Date().toISOString(), results: results };
+                time: new Date().toISOString(), environment: environment(), results: results };
     var a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' }));
     a.download = 'fp-results-' + Date.now() + '.json';

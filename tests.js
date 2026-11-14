@@ -15,6 +15,10 @@
 
 var W = SCENE_W, H = SCENE_H;
 
+// Repetitions for the stability checks (C1, C2, A1). The page sets it from
+// the "Repetitions" input; more runs catch noise that only changes sometimes.
+var REPEAT = 5;
+
 function allEqual(xs) { return xs.every(function (x) { return x === xs[0]; }); }
 function uniq(xs) { return Array.from(new Set(xs)); }
 
@@ -61,18 +65,20 @@ function runWorker() {
 
 async function canvasTests(add) {
   // C1/C2: repeated reads of one unchanged canvas must be identical.
+  // The default context is used on purpose: willReadFrequently would force
+  // the CPU raster path and hide noise added only on GPU readback.
   var c = newCanvas();
   var ctx = c.getContext('2d');
   drawScene(ctx, true);
   var urlHashes = [], pixHashes = [];
-  for (var i = 0; i < 5; i++) {
+  for (var i = 0; i < REPEAT; i++) {
     urlHashes.push(await sha256Bytes(new TextEncoder().encode(c.toDataURL())));
     pixHashes.push(await sha256Bytes(ctx.getImageData(0, 0, W, H).data));
   }
-  add('C1', 'canvas', 'toDataURL identical across 5 reads of one canvas',
-    allEqual(urlHashes) ? 'pass' : 'fail', { hashes: uniq(urlHashes) });
-  add('C2', 'canvas', 'getImageData identical across 5 reads of one canvas',
-    allEqual(pixHashes) ? 'pass' : 'fail', { hashes: uniq(pixHashes) });
+  add('C1', 'canvas', 'toDataURL identical across repeated reads of one canvas',
+    allEqual(urlHashes) ? 'pass' : 'fail', { runs: REPEAT, uniqueHashes: uniq(urlHashes) });
+  add('C2', 'canvas', 'getImageData identical across repeated reads of one canvas',
+    allEqual(pixHashes) ? 'pass' : 'fail', { runs: REPEAT, uniqueHashes: uniq(pixHashes) });
 
   // C3: the same drawing on two fresh canvases must give the same pixels.
   var c2 = newCanvas();
@@ -173,10 +179,14 @@ async function audioTests(add) {
     return { sum: sum, hash: await sha256Bytes(d), copyHash: await sha256Bytes(copy) };
   }
 
-  // A1: rendering the same graph twice must give the same samples.
-  var r1 = await classic(), r2 = await classic();
-  add('A1', 'audio', 'Oscillator+compressor render identical across 2 runs',
-    r1.hash === r2.hash ? 'pass' : 'fail', { sum1: r1.sum, sum2: r2.sum, hash1: r1.hash, hash2: r2.hash });
+  // A1: rendering the same graph repeatedly must give the same samples.
+  var runs = [];
+  for (var n = 0; n < REPEAT; n++) runs.push(await classic());
+  var r1 = runs[0];
+  var renderHashes = runs.map(function (r) { return r.hash; });
+  add('A1', 'audio', 'Oscillator+compressor render identical across repeated runs',
+    allEqual(renderHashes) ? 'pass' : 'fail',
+    { runs: REPEAT, uniqueHashes: uniq(renderHashes), uniqueSums: uniq(runs.map(function (r) { return r.sum; })) });
 
   // A2: getChannelData and copyFromChannel must return the same samples.
   add('A2', 'audio', 'getChannelData matches copyFromChannel on rendered buffer',
