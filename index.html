@@ -82,6 +82,8 @@
   function environment() {
     return {
       userAgent: navigator.userAgent,
+      // Brave sends a Chrome user agent; navigator.brave is how it identifies itself.
+      brave: !!navigator.brave,
       platform: navigator.platform || null,
       language: navigator.language,
       hardwareConcurrency: navigator.hardwareConcurrency || null,
