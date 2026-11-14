@@ -22,6 +22,16 @@ var REPEAT = 5;
 function allEqual(xs) { return xs.every(function (x) { return x === xs[0]; }); }
 function uniq(xs) { return Array.from(new Set(xs)); }
 
+// Read order as letters, e.g. "ABBBB": shows *which* read differed, which
+// tells a one-off first read apart from drift on every read.
+function sequenceOf(xs) {
+  var seen = [];
+  return xs.map(function (x) {
+    if (seen.indexOf(x) < 0) seen.push(x);
+    return String.fromCharCode(65 + seen.indexOf(x));
+  }).join('');
+}
+
 function newCanvas(doc) {
   var c = (doc || document).createElement('canvas');
   c.width = W;
@@ -76,9 +86,11 @@ async function canvasTests(add) {
     pixHashes.push(await sha256Bytes(ctx.getImageData(0, 0, W, H).data));
   }
   add('C1', 'canvas', 'toDataURL identical across repeated reads of one canvas',
-    allEqual(urlHashes) ? 'pass' : 'fail', { runs: REPEAT, uniqueHashes: uniq(urlHashes) });
+    allEqual(urlHashes) ? 'pass' : 'fail',
+    { runs: REPEAT, uniqueHashes: uniq(urlHashes), sequence: sequenceOf(urlHashes) });
   add('C2', 'canvas', 'getImageData identical across repeated reads of one canvas',
-    allEqual(pixHashes) ? 'pass' : 'fail', { runs: REPEAT, uniqueHashes: uniq(pixHashes) });
+    allEqual(pixHashes) ? 'pass' : 'fail',
+    { runs: REPEAT, uniqueHashes: uniq(pixHashes), sequence: sequenceOf(pixHashes) });
 
   // C3: the same drawing on two fresh canvases must give the same pixels.
   var c2 = newCanvas();
@@ -176,7 +188,8 @@ async function audioTests(add) {
     for (var i = 4500; i < 5000; i++) sum += Math.abs(d[i]);
     var copy = new Float32Array(d.length);
     buf.copyFromChannel(copy, 0);
-    return { sum: sum, hash: await sha256Bytes(d), copyHash: await sha256Bytes(copy) };
+    return { sum: sum, hash: await sha256Bytes(d), copyHash: await sha256Bytes(copy),
+             sample: d[4600], copySample: copy[4600] };
   }
 
   // A1: rendering the same graph repeatedly must give the same samples.
@@ -190,7 +203,10 @@ async function audioTests(add) {
 
   // A2: getChannelData and copyFromChannel must return the same samples.
   add('A2', 'audio', 'getChannelData matches copyFromChannel on rendered buffer',
-    r1.hash === r1.copyHash ? 'pass' : 'fail', { getChannelData: r1.hash, copyFromChannel: r1.copyHash });
+    r1.hash === r1.copyHash ? 'pass' : 'fail',
+    { getChannelData: r1.hash, copyFromChannel: r1.copyHash,
+      sample4600: r1.sample, copySample4600: r1.copySample,
+      ratio: r1.sample ? r1.copySample / r1.sample : null });
 
   // A3: a constant 0.5 signal must render as exactly 0.5.
   var cctx = new OAC(1, 1024, 44100);
@@ -212,6 +228,16 @@ async function audioTests(add) {
   for (var s = 0; s < ramp.length; s++) if (got[s] !== ramp[s]) bad++;
   add('A4', 'audio', 'copyToChannel -> getChannelData round-trips exactly',
     bad === 0 ? 'pass' : 'fail', { wrongSamples: bad, of: ramp.length });
+
+  // A7: getChannelData is a read. Calling it again must not change the
+  // buffer, so every call must return the value that was written.
+  var ib = new AudioBuffer({ length: 8, sampleRate: 44100, numberOfChannels: 1 });
+  ib.copyToChannel(new Float32Array(8).fill(0.5), 0);
+  var reads = [];
+  for (var k = 0; k < 3; k++) reads.push(ib.getChannelData(0)[0]);
+  add('A7', 'audio', 'getChannelData returns the same values on repeated calls',
+    allEqual(reads) && reads[0] === 0.5 ? 'pass' : 'fail',
+    { written: 0.5, reads: reads, ratio2to1: reads[1] / reads[0], ratio3to2: reads[2] / reads[1] });
 
   // A5: AnalyserNode data must not change between reads after rendering ends.
   var actx = new OAC(1, 4096, 44100);

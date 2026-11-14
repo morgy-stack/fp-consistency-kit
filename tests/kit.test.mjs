@@ -81,6 +81,13 @@ test('native targets are well formed and unique', () => {
   }
 });
 
+test('sequenceOf labels reads by first appearance', () => {
+  const kit = loadKit();
+  assert.equal(kit.sequenceOf(['x', 'y', 'y', 'y', 'y']), 'ABBBB');
+  assert.equal(kit.sequenceOf(['x', 'y', 'x', 'z']), 'ABAC');
+  assert.equal(kit.sequenceOf(['q', 'q', 'q']), 'AAA');
+});
+
 test('REPEAT defaults to 5', () => {
   assert.equal(loadKit().REPEAT, 5);
 });

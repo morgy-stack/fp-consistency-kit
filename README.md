@@ -80,6 +80,7 @@ These cover the hashing, the shared scene, the check definitions and
 | A3 | Audio | `ConstantSourceNode` at 0.5 renders as exactly 0.5 |
 | A4 | Audio | `copyToChannel` → `getChannelData` round-trips exactly |
 | A5 | Audio | `AnalyserNode` data is identical across 2 reads *(warn)* |
+| A7 | Audio | `getChannelData` returns the same values on repeated calls (a read must not change the buffer) |
 | A6 | Audio | `AudioContext` sample rate, latency, channel count *(info)* |
 | N0 | Natives | `Function.prototype.toString` is native and matches the iframe realm |
 | N1–N9 | Natives | Canvas/Audio methods have native `toString`, WebIDL descriptor flags, correct `name`/`length`, no own `prototype`, and match the iframe realm |
@@ -100,6 +101,7 @@ the same device, not on its own.
 | C8 differs from the baseline | The worker / `OffscreenCanvas` path was not patched |
 | A2 fails | `getChannelData` and `copyFromChannel` are modified inconsistently |
 | A3/A4 fail | Audio noise is added to buffers that carry no fingerprint entropy |
+| A7 fails | The read path modifies the stored samples, so every call compounds the change |
 
 Whether a given result is a defect or intended privacy behaviour depends on
 the design goal. For example, Brave deliberately adds per-session noise
