@@ -92,6 +92,35 @@ async function canvasTests(add) {
     allEqual(pixHashes) ? 'pass' : 'fail',
     { runs: REPEAT, uniqueHashes: uniq(pixHashes), sequence: sequenceOf(pixHashes) });
 
+  // C10/C11: diagnose a C1 failure. C1 interleaves toDataURL with
+  // getImageData; Chromium moves a canvas from GPU to CPU raster after
+  // repeated readbacks, so later toDataURL calls may encode a differently
+  // produced snapshot.
+  //   C10 - toDataURL only, no getImageData between reads
+  //   C11 - C1's interleaved reads on a CPU canvas from the start
+  // C1 fails, C10 and C11 pass  => the raster-mode switch triggers it.
+  var only = newCanvas();
+  drawScene(only.getContext('2d'), true);
+  var onlyHashes = [];
+  for (var o = 0; o < REPEAT; o++) {
+    onlyHashes.push(await sha256Bytes(new TextEncoder().encode(only.toDataURL())));
+  }
+  add('C10', 'canvas', 'toDataURL identical across repeated reads, no getImageData between',
+    allEqual(onlyHashes) ? 'pass' : 'fail',
+    { runs: REPEAT, uniqueHashes: uniq(onlyHashes), sequence: sequenceOf(onlyHashes) });
+
+  var cpu = newCanvas();
+  var cpuCtx = cpu.getContext('2d', { willReadFrequently: true });
+  drawScene(cpuCtx, true);
+  var cpuHashes = [];
+  for (var u = 0; u < REPEAT; u++) {
+    cpuHashes.push(await sha256Bytes(new TextEncoder().encode(cpu.toDataURL())));
+    cpuCtx.getImageData(0, 0, W, H);
+  }
+  add('C11', 'canvas', 'toDataURL identical across interleaved reads on a CPU (willReadFrequently) canvas',
+    allEqual(cpuHashes) ? 'pass' : 'fail',
+    { runs: REPEAT, uniqueHashes: uniq(cpuHashes), sequence: sequenceOf(cpuHashes) });
+
   // C3: the same drawing on two fresh canvases must give the same pixels.
   var c2 = newCanvas();
   drawScene(c2.getContext('2d'), true);

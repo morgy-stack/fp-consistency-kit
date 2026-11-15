@@ -80,6 +80,8 @@ These cover the hashing, the shared scene, the check definitions and
 | C7 | Canvas | Main-thread `OffscreenCanvas` matches a document canvas *(warn)* |
 | C8 | Canvas | Worker `OffscreenCanvas` matches a document canvas *(warn)* |
 | C9 | Canvas | A fresh iframe realm matches the top-level page |
+| C10 | Canvas | `toDataURL` is stable across repeated reads with no `getImageData` in between *(diagnoses C1)* |
+| C11 | Canvas | C1's interleaved reads are stable on a `willReadFrequently` (CPU) canvas *(diagnoses C1)* |
 | A1 | Audio | Oscillator + compressor render is identical across repeated runs |
 | A2 | Audio | `getChannelData` matches `copyFromChannel` |
 | A3 | Audio | `ConstantSourceNode` at 0.5 renders as exactly 0.5 |
