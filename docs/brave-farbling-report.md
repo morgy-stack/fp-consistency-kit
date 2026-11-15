@@ -21,16 +21,15 @@ All source links are pinned to brave-core commit
 | Browser | Chrome 157 (stock) | Brave on Chromium 157, Shields **Strict** fingerprinting |
 | Device | Windows x64 desktop (same machine) | same |
 | Kit | `fp-consistency-kit` at this commit | same |
-| Raw results | [`results/chrome-157-windows.json`](../results/chrome-157-windows.json) | [`results/brave-strict-windows.json`](../results/brave-strict-windows.json) |
+| Raw results | [`results/chrome-157-windows.json`](../results/chrome-157-windows.json) | [`results/brave-strict-windows.json`](../results/brave-strict-windows.json), [`results/brave-strict-windows-session2.json`](../results/brave-strict-windows-session2.json) |
 
-Brave was run 3 times. The same checks failed every time.
+Brave was run 4 times across 3 sessions. The same checks failed every time.
 
-- Runs 2 and 3 used the same session and returned identical hashes and audio
-  values, so the output is deterministic within a session.
-- Run 1 came from an earlier session and used a different factor
-  (`k = 0.999175` instead of `0.999144`).
-- Both factors are in the `[0.999, 1.000]` range the source defines (see F1).
-  So the factor is per session, and the failure pattern does not depend on it.
+- Two runs in the same session returned identical hashes and audio values, so
+  the output is deterministic within a session.
+- The three sessions used factors `k = 0.999175`, `0.999144` and `0.999582`.
+- All three are in the `[0.999, 1.000]` range the source defines (see F1). So
+  the factor is per session, and the failure pattern does not depend on it.
 
 ## Results
 
@@ -45,14 +44,14 @@ Brave was run 3 times. The same checks failed every time.
 | C5 | putImageData → getImageData round-trip | pass | **fail** (240 bytes) |
 | C6 | toDataURL matches getImageData | pass | **fail** (see note) |
 | C7–C9 | OffscreenCanvas, worker, iframe match | pass | pass |
+| C10 | toDataURL only, no getImageData between | pass | pass (`AAAAA`) |
+| C11 | C1's interleaved reads on a CPU canvas | pass | pass (`AAAAA`) |
 | A1 | Audio render identical across runs | pass | pass |
 | A2 | getChannelData matches copyFromChannel | pass | **fail** |
 | A3 | ConstantSource 0.5 renders as 0.5 | pass | **fail** (0.499572) |
 | A4 | copyToChannel → getChannelData round-trip | pass | **fail** (2047/2048) |
-| A7 | getChannelData idempotent | pass\* | **fail** (compounds) |
+| A7 | getChannelData idempotent | pass (0.5, 0.5, 0.5) | **fail** (compounds) |
 | N0–N9 | Native functions untouched | pass | pass |
-
-\* Expected from upstream Chromium, which has no hook here. Re-run in Chrome to record it.
 
 ## Findings
 
@@ -129,23 +128,41 @@ Brave was run 3 times. The same checks failed every time.
   contexts (C7–C9) is a good property. The fixed flip count makes small known
   regions an easy probe.
 
-### F5: toDataURL changes after the second read (open question)
+### F5: toDataURL changes after the GPU-to-CPU switch (confirmed)
 
 - **Observed (C1):** five reads of an unchanged canvas give `AABBB`. Reads 1–2
   match, then reads 3–5 match each other but differ from 1–2. Chrome gives
   `AAAAA`. `getImageData` on the same canvas stays stable (`AAAAA`).
 - **Hypothesis:**
-  - `PerturbPixels` is keyed on the pixels in the snapshot buffer, so a
-    1-bit change in the snapshot produces a completely different set of flips.
-  - The test interleaves `toDataURL` and `getImageData`. Chromium moves a canvas
+  - C1 interleaves `toDataURL` and `getImageData`. Chromium moves a canvas
     from GPU to CPU rendering after repeated readbacks, so reads 1–2 and
-    reads 3–5 probably come from differently produced snapshots.
-  - In stock Chrome both snapshots encode to the same PNG. Brave's
-    content-keyed flips would amplify any difference between them.
-- **Next step to confirm:**
-  - Repeat with `getContext('2d', { willReadFrequently: true })`, so the
-    canvas uses CPU rendering from the start. That should give `AAAAA`.
-  - Log the pre-perturbation snapshot hash in `HTMLCanvasElement::ToDataURLInternal`.
+    reads 3–5 come from differently produced snapshots.
+  - In stock Chrome both snapshots encode to the same PNG.
+  - `PerturbPixels` is keyed on the snapshot's pixels, so any difference, even
+    1 bit, produces a completely different set of flips.
+- **Experiment:** two checks isolate the trigger. Both pass in both browsers:
+  - **C10** removes the interleaved `getImageData` calls: `AAAAA`.
+  - **C11** keeps them but creates the canvas with `willReadFrequently: true`,
+    so it uses CPU rendering from the start: `AAAAA`.
+- **Conclusion:**
+  - The drift appears only when readbacks switch a GPU canvas to CPU
+    mid-session.
+  - Brave's content-keyed perturbation turns a difference that stock Chrome
+    hides into a visible hash change.
+  - A page can detect it with nothing more than toDataURL, getImageData,
+    toDataURL.
+- **Classification:** side effect of intended behaviour. Each component works
+  as designed: the raster switch is upstream Chromium, the content-keyed flips
+  are Brave. Together they produce an inconsistency.
+- **Fix options:**
+  - Key the perturbation on something stable across raster modes, such as the
+    session token plus canvas dimensions instead of the exact pixels. This
+    trades away some per-content variation.
+  - Alternatively, perturb before encoding from a snapshot that is
+    canonicalised the same way in both modes.
+- **Not yet verified at source level:** logging the pre-perturbation snapshot
+  hash in `HTMLCanvasElement::ToDataURLInternal` would show the exact
+  snapshot difference. That needs a Brave build.
 
 ### F6: C6 cannot isolate a single path in Brave (test limitation)
 
